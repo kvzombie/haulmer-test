@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  app:
+    build: .
+    container_name: payment-service
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongo:27017/payment_service
+      ACQUIRER_BASE_URL: http://acquirer-mock:3001
+      ACQUIRER_TIMEOUT_MS: 5000
+      ACQUIRER_MAX_RETRIES: 3
+      MAX_TRANSACTION_AMOUNT: 1000000
+      MIN_TRANSACTION_AMOUNT: 1
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [payment-network]
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7.0
+    container_name: payment-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [payment-network]
+    restart: unless-stopped
+
+  acquirer-mock:
+    build: ./acquirer-mock
+    container_name: acquirer-mock
+    ports:
+      - "3001:3001"
+    networks: [payment-network]
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+
+networks:
+  payment-network:
+    driver: bridge
